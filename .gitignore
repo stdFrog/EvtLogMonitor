@@ -1,0 +1,9 @@
+# ignore
+*.txt
+*.exe
+*.o
+*.cpp
+*.bat
+*.cmd
+!main.cpp
+!README.txt
