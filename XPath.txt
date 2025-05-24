@@ -1,0 +1,72 @@
+XPath란, xml 문서가 가지는 형식을 말한다.
+예를 보이면 다음과 같다.
+{
+	<Event>
+		<System>
+			<Provider Name="Application Error" />
+			<EventID>1000</EventID>
+			<Level>2</Level>
+			<TimeCreated SystemTime="2023-05-23T12:34:56.789Z"/>
+		</System>
+		<EventData>
+			<Data Name="param1">some value</Data>
+			<Data Name="param2">another value</Data>
+		</EventData>
+	</Event>
+}
+
+여기서 XPath를 쓰면 다음과 같다.
+- Provider의 Name:			Event/System/Provider/@Name
+- EventID:					Event/System/EventID
+- Level:					Event/System/Level
+- TimeCreated:				Event/System/TimeCreated/@SystemTime
+- 첫 번째 파라미터:			Event/EventData/Data[1]
+- 이름이 param2인 데이터:	Event/EventData/Data[@name="param2"]
+
+알고나면 막상 별거 아닌데 이 식으로 프로퍼티를 조사해야 한다.
+각 기호의 의미는 다음과 같다.
+- / :				노드 구분(디렉토리와 유사)
+- @	:				속성 접근
+- [1] :				배열처럼 인덱스 접근
+- [@Name="xxx"]:	특정 속성 값을 가진 항목 선택
+
+참고로 XPath는 1부터 시작하는 인덱스(One-based Indexing)을 사용한다.
+
+또, EvtQuery의 세 번째 인수로 필터 조건을 설정하는데 이것도 XPath나 xml 형식을 사용한다.
+일반적으로 XPath 쿼리에서 사용하는 표준 형식은 다음과 같다.
+
+> *[System[(조건)]]
+
+예를 들어보자.
+- *[System[(EventID=1000)]]
+- *[System[(Level=2 or Level=3)]]
+- *[System[(Provider[@Name="Application Error"])]]
+*[System[
+    (EventID=1000 and Provider[@Name="Application Error"])
+	]]
+
+좀 요란하게 생겼는데 XPath에서 *(애스터리스크)는 모든 노드(any node)를 의미한다.
+즉, 위 표준 형식의 의미는 "모든 이벤트 중에서, 그 이벤트의 System 요소가(조건)에 해당하는 것"이다.
+이벤트 로그는 실제로 <Event> 루트 노드를 여러 개 포함하고 있으며 XML 문서처럼 되어 있다.
+그래서 *는 모든 이벤트(<Event> 요소들)를 의미하는 것이다.
+
+말만 하면 잘 모르니까 다시 예시를 보자.
+{
+	<Event>
+		<System>
+			<Provider Name="Application Error" />
+			<EventID>1000</EventID>
+		</System>
+	...
+	</Event>
+	<Event>
+		<System>
+			<Provider Name="Service Control Manager" />
+			<EventID>7036</EventID>
+		</System>
+	...
+	</Event>
+}
+
+HTML이나 스크립트 언어에 익숙하다면 보기 어렵지 않을 것이다.
+
