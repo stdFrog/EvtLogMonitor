@@ -7,3 +7,5 @@
 *.cmd
 !main.cpp
 !README.txt
+!Functions.txt
+!XPath.txt
