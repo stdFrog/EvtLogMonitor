@@ -540,7 +540,7 @@ typedef enum _EVT_RENDER_CONTEXT_FLAGS {
 
 EVT_HANDLE EvtSubscribe(
 	EVT_HANDLE Session,             // 원격 이벤트 세션 핸들, 로컬이면 NULL
-	HANDLE SignalEvent,             // 신호 이벤트 핸들, 이벤트 발생 시 신호 보내기 용도 (NULL 가능)
+	HANDLE SignalEvent,             // 신호 객체의 핸들, 이벤트 발생 시 신호 상태로 만들어주는데 Callback 함수를 사용할 때는 항상 NULL이어야 한다.
 	LPCWSTR ChannelPath,            // 구독할 이벤트 로그 채널명 (예: "System", "Application", "Security")
 	LPCWSTR Query,					// XPath 쿼리: 이벤트 필터링용, NULL 시 모든 이벤트 구독
 	EVT_HANDLE Bookmark,            // 책갈피 핸들: 특정 이벤트 위치부터 구독 시작, NULL은 최신 이벤트부터 시작
@@ -559,7 +559,7 @@ EVT_HANDLE EvtSubscribe(
 
 각각의 인수를 다시 정리해보면 다음과 같다.
 - Session: 원격 컴퓨터의 이벤트 로그 세션 핸들이다. NULL이면 현재 로컬 컴퓨터 이벤트 로그를 구독한다.
-- SignalEvent: 이벤트가 발생했을 때 신호를 보내기 위한 신호 객체에 대한 핸들이다. 비동기 처리나 외부 이벤트와 연동할 때 사용되며 NULL 값을 사용할 수 있다.
+- SignalEvent: 이벤트가 발생했을 때 신호를 보내기 위한 신호 객체에 대한 핸들이다. 비동기 처리나 외부 이벤트와 연동할 때 사용되며 Callback 프로시저를 사용할 경우 항상 NULL이어야 한다. Callback을 사용할 때는 HWINEVENTHOOK 타입을 전달하는데 시스템 후킹에 활용되는 것으로 보인다.
 - ChannelPath: 구독할 이벤트 로그 채널 이름을 지정한다. 예를 들어, "Application", "System", "Security" 등을 지정할 수 있다. 특정 채널 이벤트만 구독하는 것도 가능하다.
 - Query: XPath 쿼리 문자열로, 구독할 이벤트를 필터링한다.
 	-예: "*[System[(EventID=4624)]]"
