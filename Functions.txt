@@ -169,31 +169,8 @@ Flags에는 다음과 같은 값을 지정할 수 있다.
 이 속성값이 EvtRenderEventValues 옵션으로 이벤트 집합을 조회했을 때 가져오는 값들이다.
 구조체 배열 형태로 저장되며 버퍼에 접근하여 읽을 수 있다.
 
-속성은 별도의 타입을 가지며 이러한 정보들이 하나의 구조체를 이루고 있는데 대표적인 것만 표로 정리해보면 다음과 같다.
-
-타입						속성의 이름					의미
-_________________________________________________________________________________________________________
-EvtVarTypeUInt32			EventID						이벤트의 고유 식별 번호
-EvtVarTypeUInt64			Keywords					이벤트의 키워드(분류) 정보
-EvtVarTypeInt32				Level						이벤트의 심각도(예: 정보, 경고, 오류)
-EvtVarTypeInt64				Record						이벤트 로그에서의 고유 레코드 ID
-EvtVarTypeFileTime			TimeCreated					이벤트가 기록된 시간(FILETIME 형식)
-EvtVarTypeSysTime			TimeCreated					이벤트가 기록된 시간(SYSTEMTIME 형식)
-EvtVarTypeGuid				ProviderGuid				이벤트를 생성한 프로세스 또는 서비스의 GUID
-EvtVarTypeSid				UserId						이벤트를 발생시킨 사용자 계정의 SID
-EvtVarTypeString			ProviderName				이벤트를 생성한 프로그램 또는 서비스 이름
-EvtVarTypeString			ComputerName				이벤트가 발생한 시스템의 이름
-EvtVarTypeString			Message						이벤트의 설명 또는 로그 내용
-_________________________________________________________________________________________________________
-
-- EventID:			이벤트의 고유 번호로, 특정 이벤트를 식별하는 데 사용된다.
-- RecordId:			이벤트 로그에서의 고유 레코드 ID이며 이벤트가 기록된 순서를 나타낸다.
-- TimeCreated:		이벤트가 기록된 시간이며 FILETIME 또는 SYSTEMTIME 형식으로 저장될 수 있다.
-- ProviderGuid:		이벤트를 생성한 프로그램이나 서비스의 GUID 값이다.
-- UserId:			이벤트를 발생시킨 사용자 계정의 SID 값이며 특정 사용자와 관련된 이벤트를 추적할 때 사용된다.
-- Message:			이벤트의 설명으로, 로그의 핵심 내용을 포함한다.
-
-실제 데이터를 조립하는데 필요한 구조체도 알아보자.
+속성은 별도의 타입을 가지며 이러한 정보들이 하나의 구조체를 이루고 있는데 실제 데이터를 조립하는데 필요한 구조체를 알아보자.
+원형은 다음과 같다.
 {
 	typedef struct _EVT_VARIANT {
 		union {
@@ -227,8 +204,56 @@ ________________________________________________________________________________
 굉장히 많은 필드를 포함하는 유니온 공용체가 있다.
 공용체의 특징은 따로 설명하지 않기로 하고 공용체를 제외한 나머지 멤버를 보자.
 
-Type 멤버 변수는 현재 저장된 데이터의 타입을 확인하는 용도로 쓰인다.
-Count 멤버 변수는 배열 타입일 경우 요소 개수가 저장되며 일반적으로 다음과 같이 데이터를 조립한다.
+Type 멤버 변수가 특히 중요한데 if문과 같은 예외 처리 등의 분기를 위해 반드시 점검해봐야 한다.
+EVT_VARIANT_TYPE이라는 열거형으로 정의되어 있으며 이 열거형과 비교하면 어떤 타입을 가지는지 알 수 있다.
+열거형을 보고 간단한 예시를 만들어보자.
+
+{
+	typedef enum _EVT_VARIANT_TYPE {
+		EvtVarTypeNull = 0,
+		EvtVarTypeString = 1,
+		EvtVarTypeAnsiString = 2,
+		EvtVarTypeSByte = 3,
+		EvtVarTypeByte = 4,
+		EvtVarTypeInt16 = 5,
+		EvtVarTypeUInt16 = 6,
+		EvtVarTypeInt32 = 7,
+		EvtVarTypeUInt32 = 8,
+		EvtVarTypeInt64 = 9,
+		EvtVarTypeUInt64 = 10,
+		EvtVarTypeSingle = 11,
+		EvtVarTypeDouble = 12,
+		EvtVarTypeBoolean = 13,
+		EvtVarTypeBinary = 14,
+		EvtVarTypeGuid = 15,
+		EvtVarTypeSizeT = 16,
+		EvtVarTypeFileTime = 17,
+		EvtVarTypeSysTime = 18,
+		EvtVarTypeSid = 19,
+		EvtVarTypeHexInt32 = 20,
+		EvtVarTypeHexInt64 = 21,
+		EvtVarTypeEvtHandle = 32,
+		EvtVarTypeEvtXml = 35
+	} EVT_VARIANT_TYPE;
+}
+
+타입의 유형을 값으로 표현해뒀기 때문에 비교하기 수월하다.
+안그래도 복잡한 구조를 가진 시스템 요소를 타입까지 다 외우라고 하는건 너무한 일이다.
+다음과 같이 간단히 타입을 체크할 수 있다.
+
+{
+	if(EvtVarTypeNull == pValues[EvtSystemEventID].Type){
+		...
+	}
+}
+
+다음은 Count 멤버 변수인데 이 멤버 변수는 잘 활용되지 않는다.
+특별한 경우에만 활용되는데 EventData와 같이 추가 정보들이 포함된 때에만 사용된다고 볼 수 있다.
+Guid나 EventData와 같이 여러 요소를 가지는 배열 타입이 전달되었을 때 전달된 요소의 개수가 저장된다.
+
+이제 EvtRender를 호출하는 예시를 보자.
+어떤 함수를 호출하고, 어떻게 호출하느냐에 따라 조사한 프로퍼티의 값에 접근하는 방법이 달라질 수 있다.
+또, 첨자 번호를 지정하는 방법과 멤버 변수의 이름이 달라질 수도 있다.
 
 {
 	if (EvtRender(NULL, hEvent, EvtRenderEventValues, bufferUsed, buffer, &bufferUsed, &propertyCount)) {
@@ -241,11 +266,7 @@ Count 멤버 변수는 배열 타입일 경우 요소 개수가 저장되며 일
 	}
 }
 
-읽는 것도 지맘대로고 변수명으로도 어떤 속성인지 알기 힘든데, 겁먹을 필요 없다.
-이벤트 로그의 데이터 구조에 따라 이미 의미가 정해져 있다.
-
-이벤트 로그에서 EvtRenderEventValues 옵션을 사용하면 표준 이벤트 속성 순서에 따라 데이터를 가져온다.
-이 순서는 Windows 이벤트 로그 시스템에서 정의한 표준이며 다음과 같은 순서로 저장된다.
+우선, 아래 표까지 쭉 읽어보자.
 
 첨자			속성 이름			데이터 타입					설명
 __________________________________________________________________________________________________________________________________________________
@@ -272,38 +293,90 @@ ________________________________________________________________________________
 20				EventData			EvtVarTypeBinary			이벤트의 추가 데이터, 특정 이벤트 유형에 따라 다양한 정보를 포함
 __________________________________________________________________________________________________________________________________________________
 
-공용체로 이루어진 구조체이기 때문에 한 첨자에 한 가지 의미만 가진다.
-항상 배열로 되어 있는 이유가 이러한 이유 때문이며 우리는 첨자 번호에 따른 속성의 이름과 의미만 잘 기억해두면 된다.
-사실 굳이 기억할 필요없이 어디 적어두고 필요할 때 보기만 하면 된다.
-열거형 타입으로 EVT_SYSTEM_PROPERTY_ID라는 변수가 이미 존재하는데 다음과 같다.
+앞서, 어떤 옵션을 사용하느냐에 따라 프로퍼티의 첨자로 사용되는 값이 변한다고 했는데 크게 두 가지 경우로 나누어 볼 수 있다.
 
-typedef enum _EVT_SYSTEM_PROPERTY_ID {
-	EvtSystemProviderName = 0,
-	EvtSystemProviderGuid,
-	EvtSystemEventID,
-	EvtSystemQualifiers,
-	EvtSystemLevel,
-	EvtSystemTask,
-	EvtSystemOpcode,
-	EvtSystemKeywords,
-	EvtSystemTimeCreated,
-	EvtSystemEventRecordId,
-	EvtSystemActivityID,
-	EvtSystemRelatedActivityID,
-	EvtSystemProcessID,
-	EvtSystemThreadID,
-	EvtSystemChannel,
-	EvtSystemComputer,
-	EvtSystemUserID,
-	EvtSystemVersion,
-	EvtSystemPropertyIdEND
-} EVT_SYSTEM_PROPERTY_ID;
+첫 번째는 EvtCreateRenderContext 함수의 세 번째 인수를 EvtRenderContextSystem으로 지정하는 경우이다.
+EvtCreateRenderContext 함수는 이후에 설명하기로 하고 우선 아래 열거형 변수를 보자.
+이 경우 아래 나와 있는 열거형의 멤버들을 직접 첨자로 활용할 수 있다.
 
-중요한건 열거형으로 정의해뒀다는 것이다.
-구조가 복잡하고 이름이 다양한 만큼 접근이 쉽도록 나름 고심한 것이 보인다.
-특수한 경우에는 이 값들이 직접적인 첨자로 사용될 수 있는데 EvtCreateRenderContext 함수의 첫 번째 인수와 두 번째 인수가 각각 0일 때가 이에 해당된다.
+{
+	typedef enum _EVT_SYSTEM_PROPERTY_ID {
+		EvtSystemProviderName = 0,
+		EvtSystemProviderGuid,
+		EvtSystemEventID,
+		EvtSystemQualifiers,
+		EvtSystemLevel,
+		EvtSystemTask,
+		EvtSystemOpcode,
+		EvtSystemKeywords,
+		EvtSystemTimeCreated,
+		EvtSystemEventRecordId,
+		EvtSystemActivityID,
+		EvtSystemRelatedActivityID,
+		EvtSystemProcessID,
+		EvtSystemThreadID,
+		EvtSystemChannel,
+		EvtSystemComputer,
+		EvtSystemUserID,
+		EvtSystemVersion,
+		EvtSystemPropertyIdEND
+	} EVT_SYSTEM_PROPERTY_ID;
+}
 
-추가로, 간혹 임의로 시스템 로그를 발생시켜야 하는 경우가 있다.
+다음 예시를 보자.
+{
+	PEVT_VARIANT *pValues = NULL;
+	EVT_HANDLE hContext = EvtCreateRenderContext(0, NULL, EvtRenderContextSystem);
+	EvtRender(..., pValues, ...);
+	
+	wprintf("ProviderName: %ls\n", pValues[EvtSystemProviderName].StringVal);
+}
+
+앞서 말한대로 EvtCreateRenderContext 함수의 세 번째 인수를 EvtRenderContextSystem으로 설정하면 이미 정해져 있는 열거형의 멤버를 첨자로 활용할 수 있다. 
+
+위 예시가 가장 일반적인데, 보통 시스템 로그를 조사할 때는 이런 식으로 전체를 조사하고 필요한 값만 적당히 골라내서 사용한다.
+
+다음은 필터링을 사용하는 경우인데 EvtCreateRenderContext의 첫 번째 인수와 두 번째 인수에 조회할 프로퍼티의 목록을 wchar_t 타입의 문자열 배열로 구분하여 전달한다. 이 경우 대개 세 번째 인수는 EvtRenderContextValues로 지정한다.
+
+사실 필터를 직접 지정하는 경우는 드문데, 보안과 관련된 특수한 데이터나 추가 데이터, 응용 프로그램이 기록하는 설명 등을 조회할 때가 이에 해당된다.
+
+이때는 열거형 멤버를 첨자로 사용하는 것이 불가능하며 EvtCreateRenderContext의 두 번째 인수로 전달한 프로퍼티 목록의 순서를 그대로 따른다.
+
+즉, 다음과 같다. 아래 예시를 보자.
+{
+	static const wchar_t *Props[] = {
+		L"Event/System/TimeCreated/@SystemTime",
+		L"Event/System/Channel",
+		L"Event/System/Provider/@Name",
+		L"Event/System/EventID",
+		L"Event/System/Level",
+		L"Event/System/Opcode",
+		L"Event/System/Keywords",
+		L"Event/System/Task",
+		L"Event/System/Execution/@ProcessID",
+		L"Event/EventData/Data[@Name='TargetUserName']",
+		L"Event/EventData/Data[@Name='LogonType']"
+	};
+	static DWORD dwProps = sizeof(Props)/sizeof(Props[0]);
+
+	PEVT_VARIANT *pValues = NULL;
+	EVT_HANDLE hContext = EvtCreateRenderContext(dwProps, Props, EvtRenderContextSystem);
+	EvtRender(..., pValues, ...);
+	
+	wprintf("ProviderName: %ls\n", pValues[2].StringVal);
+}
+
+프로퍼티의 목록을 직접 작성하여 EvtCreateRenderContext 함수의 두 번째 인수에 전달했다.
+이때는 앞선 예제와 달리 첨자 번호를 직접 프로퍼티의 목록에 맞게 지정해야 한다.
+이 두 가지 경우를 반드시 기억해두자. 초보자들이 가장 어려워 하는 부분이기도 하다.
+
+또, EVT_VARIANT의 구조체로부터 값을 읽거나 쓸 때 내부 공용체 멤버 변수 중 어떤 변수로 접근하여야 하는지 고민할 수도 있다.
+
+결론만 말하자면 뭘 읽든 다 똑같다.
+이건 공용체에 대해 잘 이해하지 못하고 있는 사람일 가능성이 크다.
+꽤 오랜 시간 프로그래밍을 해도 잘 모르는 경우가 있는데 다시 공용체에 대해 분석해보기 바란다.
+
+추가로, 간혹 시스템 로그를 임의로 발생시켜야 하는 경우가 생길 수 있다.
 테스트용으로도 쓰이니까 다음 함수도 알아두자.
 
 {
@@ -323,11 +396,10 @@ RegisterEventSource는 이름 그대로 이벤트를 등록하는 것이다.
 성공하면 이벤트 소스 핸들을 반환하며 이 핸들은 ReportEvent()에서 사용된다.
 실패시 NULL을 반환하는데 GetLastError()를 호출해 오류 코드를 확인할 수 있다.
 
-두 번째 인수로 이름을 전달하는데 실행한 프로그램의 이름 따위를 전달하면 된다.
+두 번째 인수로 이름을 전달하는데 실행한 프로그램의 이름을 전달하면 된다.
 같은 이름으로 여러번 등록된 경우 기존 소스를 다시 가져오며 이벤트 로그 뷰어에서 "소스" 항목으로 표시된다.
 
 만약 특정 원격 서버에서 이벤트를 등록하고자 한다면 해당 서버의 UNC 경로를 입력해야 한다.
-예를 들어, L"\\RemoteServer"의 형식으로 쓰면 된다. 메일 슬롯에서 사용하던 경로를 떠올려보자.
 
 다음은 ReportEvent 함수를 보자.
 {
@@ -356,7 +428,8 @@ ReportEvent 함수는 이벤트 로그에 새로운 이벤트를 기록하는 �
 이벤트 로그를 등록한 후에는 핸들을 해제해야 하며 등록된 이벤트 소스를 정리하고 리소스를 반환하는 역할을 한다.
 EvtClose는 모든 이벤트 로그 핸들을 닫는 역할을 하며 EvtQuery, EvtNext, EvtOpenLog 등의 함수에서 얻은 핸들을 닫는 용도로 쓰인다.
 
-위에서 배운 함수들을 이용해서 전체적인 흐름을 얼추 그려보면 다음과 같은 순서로 진행하면 된다.
+위에서 배운 함수들을 이용해서 전체적인 흐름을 얼추 그려보면 다음과 같은 순서로 진행된다.
+
 1. EvtQuery()를 사용해서 "System" 로그 채널에서 이벤트 데이터를 가져옴.
 2. EvtNext()를 호출해서 최신 이벤트를 하나씩 가져옴.
 3. EvtRender()를 이용해 속성을 EVT_VARIANT 구조체 배열 형태로 변환.
@@ -380,18 +453,14 @@ EvtClose는 모든 이벤트 로그 핸들을 닫는 역할을 하며 EvtQuery, 
 	);
 }
 
-함수가 성공하면 TRUE를 리턴하며, 별다른 의미는 없다.
-ValueCount(4번째 인수)와 Values(5번째 인수)를 0과 NULL로 설정하면, 
-함수는 이벤트 데이터에서 자동으로 삽입 값을 가져온다. 
+함수가 성공하면 TRUE를 리턴한다.
+여섯 번째 인수 Flags에 적절한 옵션을 추가하면 네 번째 인수 ValueCount와 다섯 번째 인수 Values를 각각 0과 NULL로 설정해도 이벤트 데이터에서 알아서 값을 잘 가져온다. 
 
-즉, 3,4번 인수를 0으로 전달하고 Flags에 가져올 데이터 형식만 이쁘게 지정해두면
-이벤트 데이터에서 필요한 메시지를 알아서 잘 받아온다.
+즉, 4,5번 인수를 0과 NULL로 전달하고 Flags에 가져오고자 하는 데이터 형식만 이쁘게 지정하면 이벤트 데이터에서 필요한 메시지를 알아서 잘 받아온다.
 
-단, 특정한 값(예: 사용자 계정 이름, 프로세스 ID 등)을 직접 지정하려면 Values 배열을 전달해야 한다.
-또, MessageId에 0을 설정하면 기본 메시지를 가져오고 특별한 경우에만 0이 아닌 값을 설정한다.
+MessageId는 특수한 경우 0이 아닌 값을 가지는데 공급자가 특수한 포맷으로 메타데이터를 기록한 경우가 이에 해당되는 것으로 보인다. 
 
-Flags에는 가져오고자 하는 메시지의 유형을 지정한다.
-이 메시지의 유형은 열거형으로 되어 있으며 다음과 같다.
+Flags는 가져오고자 하는 메시지의 유형을 지정하는데 이 메시지의 유형은 열거형으로 되어 있으며 다음과 같다.
 
 typedef enum _EVT_FORMAT_MESSAGE_FLAGS {
 	EvtFormatMessageEvent = 1,
@@ -405,7 +474,7 @@ typedef enum _EVT_FORMAT_MESSAGE_FLAGS {
 	EvtFormatMessageXml
 } EVT_FORMAT_MESSAGE_FLAGS;
 
-이름 자체가 굉장히 설명적이지만 그래도 정리해보면 다음과 같다.
+이름 자체가 굉장히 설명적이지만 그래도 정리해봤다.
 EvtFormatMessageEvent:		EventID로부터 미리 정의된 문자열 상수를 가져온다.
 EvtFormatMessageLevel:		Level이 가지는 값으로부터 미리 정의된 문자열 상수를 가져온다.
 EvtFormatMessageTask:		Task이 가지는 값으로부터 미리 정의된 문자열 상수를 가져온다.
@@ -428,17 +497,20 @@ EVT_HANDLE EvtOpenPublisherMetadata(
 );
 
 함수가 성공하면 메타데이터에 대한 핸들을 반환하고 실패시 NULL을 반환한다.
-설마 그런 일은 없겠지만 메타데이터를 모르는 사람이 있을까봐 노파심에 설명을 조금 추가한다.
+
 메타데이터란 특정 이벤트 공급자에 대한 정보를 포함하는 데이터이다.
 예를 들어, 프로그램을 만들고 리소스 따위로 프로그램을 제작한 일자, 파일 이름, 만든 사람 등의 데이터를 집어넣는데 이러한 데이터들을 메타데이터라고 한다.
 
 공급자(또는 개발자)가 정의하는 프로그램을 설명하고 보충하는 모든 데이터를 메타데이터라고 이해하는 것이 더 적합할 것이다.
-이 함수가 설명하는 메타데이터는 아마 공급자가 정의한 이벤트, 속성, 지역화된 메시지 등의 정보 따위를 포함할 것이다. 어떻게 보면 데이터를 설명하는 데이터라고 볼 수 있다.
+이 함수가 설명하는 메타데이터는 아마 공급자가 정의한 이벤트, 속성, 지역화된 메시지 등의 정보 따위를 포함할 것이다. 어떻게 보면 데이터를 설명하는 데이터라고도 할 수 있다.
+
 
 이제 EvtCreateRenderContext 함수에 대해 알아보자.
-이벤트 로그에서 어떤 필드(프로퍼티)들을 가져올지 렌더링 컨텍스트를 지정하는 함수다.
-이름 그대로 렌더링할 컨텍스트를 지정하는 것이므로 EvtRender 이전에 호출해야 한다.
-이 컨텍스트를 EvtRender의 첫 번째 인자로 넘겨서 지정한 필드 값들만 EVT_VARIANT 배열로 받을 수 있다.
+
+이 함수는 이벤트 로그에서 어떤 필드(프로퍼티)들을 가져올지 렌더링 컨텍스트를 지정하는 함수다.
+이름 그대로 렌더링할 컨텍스트를 지정하는 것이므로 EvtRender 함수를 사용하기 이전에 호출한다.
+
+이 컨텍스트 핸들을 EvtRender 함수의 첫 번째 인수로 넘기면 전체를 조사하지 않고 지정한 컨텍스트 내의 프로퍼티만 조사할 수 있다.
 
 EVT_HANDLE WINAPI EvtCreateRenderContext(
 	DWORD     propertyCount,    // 가져올 필드(프로퍼티) 개수, 0으로 지정할 수 있으며 기본 값을 사용한다.
@@ -461,9 +533,10 @@ typedef enum _EVT_RENDER_CONTEXT_FLAGS {
 	EvtRenderContextUser
 } EVT_RENDER_CONTEXT_FLAGS;
 
+앞에서 주의사항은 이미 다 얘기했으며 딱히 어려울 것 없는 함수라 더 설명할 것이 없다.
 
 이제 진짜 마지막으로 실시간으로 로그를 감지하는 유형의 프로그램을 만들 때 필요한 함수를 알아보자.
-구독이라는 개념을 사용하는 것으로 보이는데 정확한 의미는 사실 실시간 알림을 받는다는 정도로 해석하면 될 것 같다.
+구독이라는 개념을 사용하는데 정확한 의미는 사실 실시간 알림을 받는다는 정도로 해석하면 될 것 같다.
 
 EVT_HANDLE EvtSubscribe(
 	EVT_HANDLE Session,             // 원격 이벤트 세션 핸들, 로컬이면 NULL
@@ -505,6 +578,7 @@ EVT_HANDLE EvtSubscribe(
 
 Callback 함수에서 EVT_SUBSCRIBE_NOTIFY_ACTION 열거형에 따라 처리 동작이 결정된다고 했다.
 주요 멤버와 의미를 살펴보자.
+
 - EvtSubscribeActionError:				구독 중 오류가 발생했을 때 호출된다. 예로, 네트워크 오류, 권한 문제 등이 있다.
 - EvtSubscribeActionDeliver:			새로운 이벤트가 도착했을 때 호출된다. 이때 이벤트 핸들을 받아 이벤트를 처리한다.
 - EvtSubscribeActionCanceled:			구독이 취소되었을 때 호출된다. 예로, 사용자가 구독을 종료하거나, 애플리케이션이 종료될 때가 해당된다.
